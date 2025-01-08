@@ -4,34 +4,81 @@ import numpy as np
 from datetime import datetime
 from babel.numbers import format_decimal
 
+# Conversion data for quick references
+conversion_factors = {
+    "Length": {
+        "meters to feet": 3.28084,
+        "feet to meters": 0.3048,
+        "inches to cm": 2.54,
+        "cm to inches": 0.393701,
+    },
+    "Area": {
+        "sq meters to hectares": 0.0001,
+        "hectares to sq meters": 10000,
+        "acres to hectares": 0.404686,
+        "hectares to acres": 2.47105,
+        "sq feet to acres": 2.2957e-5,
+        "acres to sq feet": 43560,
+    },
+    "Volume": {
+        "liters to gallons": 0.264172,
+        "gallons to liters": 3.78541,
+        "cubic feet to gallons": 7.48052,
+        "gallons to cubic feet": 0.133681,
+    },
+    "Weight": {
+        "pounds to kilograms": 0.453592,
+        "kilograms to pounds": 2.20462,
+        "ounces to grams": 28.3495,
+        "grams to ounces": 0.035274,
+    },
+}
+
 # Initialize session state for saved settings and history
 if "saved_settings" not in st.session_state:
     st.session_state["saved_settings"] = {}
 if "calculation_history" not in st.session_state:
     st.session_state["calculation_history"] = []
 
+# Function to append to history
+def append_history(entry):
+    st.session_state["calculation_history"].append(entry)
+
 # Function to format numbers
 def format_number(value, locale="en_US"):
     return format_decimal(value, locale=locale)
 
-# Function to save settings
-def save_settings(name, settings):
-    st.session_state["saved_settings"][name] = settings
-    st.success(f"Settings '{name}' saved successfully!")
+# Conversion Module
+def conversion_module():
+    st.header("Conversion Module")
+    st.write("Perform quick and precise conversions for farming and agriculture.")
 
-# Function to append to history
-def append_history(entry):
-    st.session_state["calculation_history"].append(entry)
+    category = st.selectbox("Select Conversion Category:", list(conversion_factors.keys()))
+    options = list(conversion_factors[category].keys())
+    conversion = st.selectbox("Select Conversion:", options)
+    input_value = st.number_input("Enter Value to Convert:", min_value=0.0, step=0.01)
+
+    if st.button("Convert"):
+        factor = conversion_factors[category][conversion]
+        result = input_value * factor
+        st.success(f"{input_value} converts to {format_number(result)} ({conversion}).")
+        append_history({
+            "type": "Conversion",
+            "category": category,
+            "conversion": conversion,
+            "input_value": input_value,
+            "result": result,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
 
 # Chemical Dosage Calculator
 def chemical_calculator():
     st.header("Chemical Dosage Calculator")
     st.write("Calculate the required chemical dosage for a specific area.")
 
-    # Input fields
-    total_area = st.number_input("Total area recommended (e.g., 10 ha):", min_value=0.0, step=0.1)
-    total_chemical = st.number_input("Total chemical recommended (e.g., 1 L):", min_value=0.0, step=0.01)
-    desired_area = st.number_input("Your desired area (e.g., 3 ha):", min_value=0.0, step=0.1)
+    total_area = st.number_input("Enter total area recommended (e.g., 10 ha):", min_value=0.0, step=0.1)
+    total_chemical = st.number_input("Enter total chemical recommended (e.g., 1 L):", min_value=0.0, step=0.01)
+    desired_area = st.number_input("Enter your desired area (e.g., 3 ha):", min_value=0.0, step=0.1)
 
     if st.button("Calculate Dosage"):
         if total_area > 0 and total_chemical > 0:
@@ -49,101 +96,10 @@ def chemical_calculator():
         else:
             st.error("Please enter valid inputs.")
 
-# Unit Converter
-def unit_converter():
-    st.header("Unit Converter")
-    st.write("Convert between common units for chemicals, water, and land.")
-
-    # Unit options
-    unit_options = ["Liters (L)", "Milliliters (mL)", "Hectares (ha)", "Acres"]
-    from_unit = st.selectbox("From Unit:", unit_options)
-    to_unit = st.selectbox("To Unit:", unit_options)
-    value = st.number_input(f"Enter value in {from_unit}:", min_value=0.0, step=0.01)
-
-    conversion_factors = {
-        ("Liters (L)", "Milliliters (mL)"): 1000,
-        ("Milliliters (mL)", "Liters (L)"): 0.001,
-        ("Hectares (ha)", "Acres"): 2.47105,
-        ("Acres", "Hectares (ha)"): 0.404686,
-    }
-
-    if st.button("Convert Units"):
-        if (from_unit, to_unit) in conversion_factors:
-            converted_value = value * conversion_factors[(from_unit, to_unit)]
-            st.success(f"{value} {from_unit} is equal to {converted_value} {to_unit}.")
-            append_history({
-                "type": "Unit Conversion",
-                "from_unit": from_unit,
-                "to_unit": to_unit,
-                "original_value": value,
-                "converted_value": converted_value,
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
-        elif from_unit == to_unit:
-            st.info("Units are the same. No conversion needed.")
-        else:
-            st.error("Conversion not available for the selected units.")
-
-# Fertilizer Mixing Ratio
-def fertilizer_mixer():
-    st.header("Fertilizer Mixing Ratio")
-    st.write("Calculate mixing ratios for fertilizers or chemicals.")
-
-    total_volume = st.number_input("Enter total chemical volume (L):", min_value=0.0, step=0.01)
-    ratio = st.text_input("Enter ratio (e.g., 10:20:10):")
-
-    if st.button("Calculate Mixing Ratio"):
-        try:
-            parts = list(map(int, ratio.split(":")))
-            total_parts = sum(parts)
-            amounts = [round((part / total_parts) * total_volume, 2) for part in parts]
-            st.success(f"Mixing amounts: {amounts} L for ratio {ratio}.")
-            append_history({
-                "type": "Fertilizer Mixing",
-                "total_volume": total_volume,
-                "ratio": ratio,
-                "amounts": amounts,
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
-        except ValueError:
-            st.error("Invalid ratio format. Use numbers separated by colons (e.g., 10:20:10).")
-
-# Water Requirements
-def water_requirements():
-    st.header("Water Requirements")
-    st.write("Calculate water needed for chemical dilution.")
-
-    chemical_volume = st.number_input("Chemical volume (L):", min_value=0.0, step=0.01)
-    dilution_rate = st.number_input("Dilution rate (e.g., 1:100):", min_value=0.0, step=0.1)
-
-    if st.button("Calculate Water Volume"):
-        if dilution_rate > 0:
-            water_volume = chemical_volume * dilution_rate
-            st.success(f"You need {water_volume} L of water to dilute {chemical_volume} L of chemical.")
-            append_history({
-                "type": "Water Requirement",
-                "chemical_volume": chemical_volume,
-                "dilution_rate": dilution_rate,
-                "water_volume": water_volume,
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
-        else:
-            st.error("Please enter a valid dilution rate.")
-
 # Dashboard for History
 def dashboard():
     st.header("Dashboard")
-    st.write("View your saved settings and calculation history.")
-
-    # Saved Settings
-    st.subheader("Saved Settings")
-    settings_name = st.text_input("Save current settings (name):")
-    if st.button("Save Settings"):
-        current_settings = {
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "history": st.session_state["calculation_history"],
-        }
-        save_settings(settings_name, current_settings)
+    st.write("View your calculation history.")
 
     # Display History
     st.subheader("Calculation History")
@@ -155,28 +111,22 @@ def dashboard():
 
 # Main App
 def main():
-    st.title("Farm Helper: Chemical and Fertilizer Calculator")
+    st.title("Enhanced Farm Helper: Agriculture Conversion and Tools")
     st.sidebar.title("Navigation")
     options = [
+        "Conversion Module",
         "Chemical Calculator",
-        "Unit Converter",
-        "Fertilizer Mixer",
-        "Water Requirements",
         "Dashboard",
     ]
     choice = st.sidebar.radio("Choose a tool:", options)
 
-    if choice == "Chemical Calculator":
+    if choice == "Conversion Module":
+        conversion_module()
+    elif choice == "Chemical Calculator":
         chemical_calculator()
-    elif choice == "Unit Converter":
-        unit_converter()
-    elif choice == "Fertilizer Mixer":
-        fertilizer_mixer()
-    elif choice == "Water Requirements":
-        water_requirements()
     elif choice == "Dashboard":
         dashboard()
 
-
 if __name__ == "__main__":
     main()
+
